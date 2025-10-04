@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -11,12 +12,22 @@ from k8s_cli.task_models import (
     TaskSubmitResponse,
 )
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize resources on startup"""
+    logger.info("Starting API server")
     app.state.executor = KubernetesTaskExecutor()
+    logger.info("Kubernetes executor initialized")
     yield
+    logger.info("Shutting down API server")
 
 
 app = FastAPI(
@@ -42,8 +53,10 @@ async def submit_task(task: TaskDefinition):
     a Kubernetes Job to execute it.
     """
     try:
+        logger.info(f"Submitting task: {task.name or 'unnamed'}")
         executor: KubernetesTaskExecutor = app.state.executor
         task_id = await executor.submit_task(task)
+        logger.info(f"Task submitted successfully with ID: {task_id}")
 
         return TaskSubmitResponse(
             task_id=task_id,
@@ -51,6 +64,7 @@ async def submit_task(task: TaskDefinition):
             message=f"Task submitted successfully with ID: {task_id}",
         )
     except Exception as e:
+        logger.error(f"Failed to submit task: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to submit task: {str(e)}")
 
 
@@ -62,12 +76,15 @@ async def stop_task(task_id: str):
     Terminates the Kubernetes Job associated with the task ID.
     """
     try:
+        logger.info(f"Stopping task: {task_id}")
         executor: KubernetesTaskExecutor = app.state.executor
         success = await executor.stop_task(task_id)
 
         if not success:
+            logger.warning(f"Task not found: {task_id}")
             raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
+        logger.info(f"Task stopped successfully: {task_id}")
         return TaskStopResponse(
             task_id=task_id,
             status="stopped",
@@ -76,6 +93,7 @@ async def stop_task(task_id: str):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Failed to stop task {task_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stop task: {str(e)}")
 
 
@@ -87,11 +105,14 @@ async def list_tasks():
     Returns a list of all tasks with their current status.
     """
     try:
+        logger.info("Listing all tasks")
         executor: KubernetesTaskExecutor = app.state.executor
         tasks = await executor.list_tasks()
+        logger.info(f"Found {len(tasks)} tasks")
 
         return TaskListResponse(tasks=tasks)
     except Exception as e:
+        logger.error(f"Failed to list tasks: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to list tasks: {str(e)}")
 
 
@@ -103,16 +124,20 @@ async def get_task_status(task_id: str):
     Returns detailed status information for the specified task.
     """
     try:
+        logger.info(f"Getting status for task: {task_id}")
         executor: KubernetesTaskExecutor = app.state.executor
         task_status = await executor.get_task_status(task_id)
 
         if not task_status:
+            logger.warning(f"Task not found: {task_id}")
             raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
 
+        logger.info(f"Task status retrieved: {task_id} - {task_status.status}")
         return task_status
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Failed to get task status for {task_id}: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to get task status: {str(e)}"
         )
