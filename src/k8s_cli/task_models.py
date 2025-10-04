@@ -1,9 +1,11 @@
-from typing import Optional, Dict, List, Any
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field
 
 
 class Resources(BaseModel):
     """Resource requirements for a task"""
+
     cpus: Optional[str] = None
     memory: Optional[str] = None
     accelerators: Optional[str] = None
@@ -16,6 +18,7 @@ class Resources(BaseModel):
 
 class TaskDefinition(BaseModel):
     """SkyPilot-compatible task definition"""
+
     name: Optional[str] = None
     workdir: Optional[str] = None
     num_nodes: int = Field(default=1, ge=1)
@@ -28,6 +31,7 @@ class TaskDefinition(BaseModel):
 
 class TaskStatus(BaseModel):
     """Task status information"""
+
     task_id: str
     name: Optional[str]
     status: str  # pending, running, completed, failed, stopped
@@ -38,6 +42,7 @@ class TaskStatus(BaseModel):
 
 class TaskSubmitResponse(BaseModel):
     """Response from task submission"""
+
     task_id: str
     status: str
     message: str
@@ -45,11 +50,13 @@ class TaskSubmitResponse(BaseModel):
 
 class TaskListResponse(BaseModel):
     """Response for listing tasks"""
+
     tasks: List[TaskStatus]
 
 
 class TaskStopResponse(BaseModel):
     """Response from stopping a task"""
+
     task_id: str
     status: str
     message: str

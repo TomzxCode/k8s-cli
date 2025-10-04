@@ -26,3 +26,13 @@ build-backend = "hatchling.build"
 dev-dependencies = [
     "ruff>=0.8.0,<1.0.0",
 ]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["k8s_cli"]
+combine-as-imports = true

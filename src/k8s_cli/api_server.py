@@ -1,16 +1,15 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-import yaml
 
+from fastapi import FastAPI, HTTPException
+
+from k8s_cli.k8s_executor import KubernetesTaskExecutor
 from k8s_cli.task_models import (
     TaskDefinition,
-    TaskSubmitResponse,
     TaskListResponse,
+    TaskStatus,
     TaskStopResponse,
-    TaskStatus
+    TaskSubmitResponse,
 )
-from k8s_cli.k8s_executor import KubernetesTaskExecutor
 
 
 @asynccontextmanager
@@ -24,7 +23,7 @@ app = FastAPI(
     title="SkyPilot-Compatible Kubernetes Task Launcher",
     description="API server for launching tasks on Kubernetes with SkyPilot YAML compatibility",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 
@@ -49,7 +48,7 @@ async def submit_task(task: TaskDefinition):
         return TaskSubmitResponse(
             task_id=task_id,
             status="submitted",
-            message=f"Task submitted successfully with ID: {task_id}"
+            message=f"Task submitted successfully with ID: {task_id}",
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to submit task: {str(e)}")
@@ -72,7 +71,7 @@ async def stop_task(task_id: str):
         return TaskStopResponse(
             task_id=task_id,
             status="stopped",
-            message=f"Task {task_id} stopped successfully"
+            message=f"Task {task_id} stopped successfully",
         )
     except HTTPException:
         raise
@@ -114,9 +113,12 @@ async def get_task_status(task_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get task status: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get task status: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

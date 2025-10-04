@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-import typer
-import httpx
-import yaml
 from pathlib import Path
-from rich.console import Console
-from rich.table import Table
 from typing import Optional
 
+import httpx
+import typer
+import yaml
+from rich.console import Console
+from rich.table import Table
+
 app = typer.Typer(
-    name="sky-k8s",
-    help="SkyPilot-compatible Kubernetes task launcher CLI"
+    name="sky-k8s", help="SkyPilot-compatible Kubernetes task launcher CLI"
 )
 console = Console()
 
@@ -20,6 +20,7 @@ DEFAULT_API_URL = "http://localhost:8000"
 def get_api_url() -> str:
     """Get API server URL from environment or use default"""
     import os
+
     return os.environ.get("SKY_K8S_API_URL", DEFAULT_API_URL)
 
 
@@ -27,8 +28,8 @@ def handle_api_error(e: Exception) -> None:
     """Handle API errors and exit"""
     if isinstance(e, httpx.HTTPStatusError):
         try:
-            error_detail = e.response.json().get('detail', e.response.text)
-        except:
+            error_detail = e.response.json().get("detail", e.response.text)
+        except Exception:
             error_detail = e.response.text
         console.print(f"[red]Error: {error_detail}[/red]")
     elif isinstance(e, httpx.HTTPError):
@@ -41,7 +42,9 @@ def handle_api_error(e: Exception) -> None:
 @app.command()
 def submit(
     task_file: Path = typer.Argument(..., help="Path to task YAML file"),
-    api_url: Optional[str] = typer.Option(None, "--api-url", "-u", help="API server URL")
+    api_url: Optional[str] = typer.Option(
+        None, "--api-url", "-u", help="API server URL"
+    ),
 ):
     """
     Submit a task from a YAML file
@@ -57,12 +60,14 @@ def submit(
 
     try:
         # Load YAML file
-        with open(task_file, 'r') as f:
+        with open(task_file, "r") as f:
             task_data = yaml.safe_load(f)
 
         # Validate run command exists
-        if 'run' not in task_data:
-            console.print("[red]Error: 'run' field is required in task definition[/red]")
+        if "run" not in task_data:
+            console.print(
+                "[red]Error: 'run' field is required in task definition[/red]"
+            )
             raise typer.Exit(1)
 
         # Submit task to API
@@ -71,7 +76,7 @@ def submit(
             response.raise_for_status()
             result = response.json()
 
-        console.print(f"[green]✓ Task submitted successfully[/green]")
+        console.print("[green]✓ Task submitted successfully[/green]")
         console.print(f"  Task ID: [cyan]{result['task_id']}[/cyan]")
         console.print(f"  Status: {result['status']}")
 
@@ -85,7 +90,9 @@ def submit(
 @app.command()
 def stop(
     task_id: str = typer.Argument(..., help="Task ID to stop"),
-    api_url: Optional[str] = typer.Option(None, "--api-url", "-u", help="API server URL")
+    api_url: Optional[str] = typer.Option(
+        None, "--api-url", "-u", help="API server URL"
+    ),
 ):
     """
     Stop a running task
@@ -101,7 +108,7 @@ def stop(
             response.raise_for_status()
             result = response.json()
 
-        console.print(f"[green]✓ Task stopped successfully[/green]")
+        console.print("[green]✓ Task stopped successfully[/green]")
         console.print(f"  Task ID: [cyan]{result['task_id']}[/cyan]")
         console.print(f"  Status: {result['status']}")
 
@@ -111,8 +118,12 @@ def stop(
 
 @app.command()
 def list(
-    api_url: Optional[str] = typer.Option(None, "--api-url", "-u", help="API server URL"),
-    show_details: bool = typer.Option(False, "--details", "-d", help="Show detailed information")
+    api_url: Optional[str] = typer.Option(
+        None, "--api-url", "-u", help="API server URL"
+    ),
+    show_details: bool = typer.Option(
+        False, "--details", "-d", help="Show detailed information"
+    ),
 ):
     """
     List all tasks
@@ -129,7 +140,7 @@ def list(
             response.raise_for_status()
             result = response.json()
 
-        tasks = result.get('tasks', [])
+        tasks = result.get("tasks", [])
 
         if not tasks:
             console.print("[yellow]No tasks found[/yellow]")
@@ -148,17 +159,19 @@ def list(
 
         for task in tasks:
             row = [
-                task['task_id'],
-                task.get('name') or '-',
-                task['status'],
-                task['created_at'][:19] if task.get('created_at') else '-'
+                task["task_id"],
+                task.get("name") or "-",
+                task["status"],
+                task["created_at"][:19] if task.get("created_at") else "-",
             ]
 
-            if show_details and task.get('metadata'):
-                row.extend([
-                    task['metadata'].get('job_name', '-'),
-                    task['metadata'].get('namespace', '-')
-                ])
+            if show_details and task.get("metadata"):
+                row.extend(
+                    [
+                        task["metadata"].get("job_name", "-"),
+                        task["metadata"].get("namespace", "-"),
+                    ]
+                )
 
             table.add_row(*row)
 
@@ -172,7 +185,9 @@ def list(
 @app.command()
 def status(
     task_id: str = typer.Argument(..., help="Task ID to check"),
-    api_url: Optional[str] = typer.Option(None, "--api-url", "-u", help="API server URL")
+    api_url: Optional[str] = typer.Option(
+        None, "--api-url", "-u", help="API server URL"
+    ),
 ):
     """
     Get status of a specific task
@@ -188,16 +203,16 @@ def status(
             response.raise_for_status()
             task = response.json()
 
-        console.print(f"[bold]Task Details[/bold]")
+        console.print("[bold]Task Details[/bold]")
         console.print(f"  Task ID: [cyan]{task['task_id']}[/cyan]")
         console.print(f"  Name: {task.get('name') or '-'}")
         console.print(f"  Status: [green]{task['status']}[/green]")
         console.print(f"  Created: {task.get('created_at', '-')}")
         console.print(f"  Updated: {task.get('updated_at', '-')}")
 
-        if task.get('metadata'):
-            console.print(f"\n[bold]Metadata[/bold]")
-            for key, value in task['metadata'].items():
+        if task.get("metadata"):
+            console.print("\n[bold]Metadata[/bold]")
+            for key, value in task["metadata"].items():
                 console.print(f"  {key}: {value}")
 
     except Exception as e:

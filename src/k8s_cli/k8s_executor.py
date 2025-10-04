@@ -1,10 +1,9 @@
-import kr8s
-from kr8s.objects import Job, Pod
-import yaml
-from datetime import datetime
-from typing import List, Dict, Any, Optional
 import uuid
-import asyncio
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import kr8s
+from kr8s.objects import Job
 
 from k8s_cli.task_models import TaskDefinition, TaskStatus
 
@@ -54,7 +53,7 @@ class KubernetesTaskExecutor:
                 },
                 "annotations": {
                     "created-at": datetime.utcnow().isoformat(),
-                }
+                },
             },
             "spec": {
                 "backoffLimit": 0,
@@ -68,9 +67,9 @@ class KubernetesTaskExecutor:
                     "spec": {
                         "restartPolicy": "Never",
                         "containers": [container_spec],
-                    }
-                }
-            }
+                    },
+                },
+            },
         }
 
         # Create the job
@@ -81,7 +80,11 @@ class KubernetesTaskExecutor:
 
     async def stop_task(self, task_id: str) -> bool:
         """Stop a running task"""
-        jobs = list(self.api.get("jobs", namespace=self.namespace, label_selector=f"task-id={task_id}"))
+        jobs = list(
+            self.api.get(
+                "jobs", namespace=self.namespace, label_selector=f"task-id={task_id}"
+            )
+        )
 
         if not jobs:
             return False
@@ -93,7 +96,13 @@ class KubernetesTaskExecutor:
 
     async def list_tasks(self) -> List[TaskStatus]:
         """List all tasks"""
-        jobs = list(self.api.get("jobs", namespace=self.namespace, label_selector=f"{self.task_label}=true"))
+        jobs = list(
+            self.api.get(
+                "jobs",
+                namespace=self.namespace,
+                label_selector=f"{self.task_label}=true",
+            )
+        )
 
         tasks = []
         for job in jobs:
@@ -104,7 +113,11 @@ class KubernetesTaskExecutor:
 
     async def get_task_status(self, task_id: str) -> Optional[TaskStatus]:
         """Get status of a specific task"""
-        jobs = list(self.api.get("jobs", namespace=self.namespace, label_selector=f"task-id={task_id}"))
+        jobs = list(
+            self.api.get(
+                "jobs", namespace=self.namespace, label_selector=f"task-id={task_id}"
+            )
+        )
 
         if not jobs:
             return None
@@ -141,7 +154,7 @@ class KubernetesTaskExecutor:
             metadata={
                 "job_name": metadata.get("name"),
                 "namespace": metadata.get("namespace"),
-            }
+            },
         )
 
     def _get_image(self, task_def: TaskDefinition) -> str:
