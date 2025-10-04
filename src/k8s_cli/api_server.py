@@ -3,14 +3,14 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import yaml
 
-from sky_k8s.task_models import (
+from k8s_cli.task_models import (
     TaskDefinition,
     TaskSubmitResponse,
     TaskListResponse,
     TaskStopResponse,
     TaskStatus
 )
-from sky_k8s.k8s_executor import KubernetesTaskExecutor
+from k8s_cli.k8s_executor import KubernetesTaskExecutor
 
 
 @asynccontextmanager

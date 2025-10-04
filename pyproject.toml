@@ -1,5 +1,5 @@
 [project]
-name = "sky-k8s"
+name = "k8s-cli"
 version = "1.0.0"
 description = "SkyPilot-compatible Kubernetes task launcher"
 readme = "README.md"
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-sky-k8s = "sky_k8s.cli:app"
+k8s-cli = "k8s_cli.cli:app"
 
 [build-system]
 requires = ["hatchling"]
