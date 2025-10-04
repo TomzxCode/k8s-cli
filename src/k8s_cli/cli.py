@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -9,12 +10,15 @@ from rich.console import Console
 from rich.table import Table
 
 app = typer.Typer(
-    name="sky-k8s", help="SkyPilot-compatible Kubernetes task launcher CLI"
+    name="k8s-cli", help="SkyPilot-compatible Kubernetes task launcher CLI"
 )
 console = Console()
 
 # Default API server URL
 DEFAULT_API_URL = "http://localhost:8000"
+# User config file
+CONFIG_DIR = Path.home() / ".config" / "k8s-cli"
+USER_CONFIG_FILE = CONFIG_DIR / "user.json"
 
 
 def get_api_url() -> str:
@@ -22,6 +26,34 @@ def get_api_url() -> str:
     import os
 
     return os.environ.get("SKY_K8S_API_URL", DEFAULT_API_URL)
+
+
+def get_current_user() -> Optional[str]:
+    """Get current logged-in user from config file"""
+    if USER_CONFIG_FILE.exists():
+        try:
+            with open(USER_CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+                return config.get('username')
+        except:
+            return None
+    return None
+
+
+def save_user(username: str) -> None:
+    """Save username to config file"""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    with open(USER_CONFIG_FILE, 'w') as f:
+        json.dump({'username': username}, f)
+
+
+def get_user_header() -> dict:
+    """Get user header for API requests"""
+    user = get_current_user()
+    if not user:
+        console.print("[red]Error: Not logged in. Run 'k8s-cli login <username>' first[/red]")
+        raise typer.Exit(1)
+    return {"X-User": user}
 
 
 def handle_api_error(e: Exception) -> None:
@@ -37,6 +69,37 @@ def handle_api_error(e: Exception) -> None:
     else:
         console.print(f"[red]Error: {e}[/red]")
     raise typer.Exit(1)
+
+
+@app.command()
+def login(username: str = typer.Argument(..., help="Username to log in as")):
+    """
+    Log in as a user
+
+    Example:
+        k8s-cli login myusername
+    """
+    try:
+        save_user(username)
+        console.print(f"[green]✓ Logged in as: [cyan]{username}[/cyan][/green]")
+    except Exception as e:
+        console.print(f"[red]Error: Failed to save user: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def whoami():
+    """
+    Show current logged-in user
+
+    Example:
+        k8s-cli whoami
+    """
+    user = get_current_user()
+    if user:
+        console.print(f"Logged in as: [cyan]{user}[/cyan]")
+    else:
+        console.print("[yellow]Not logged in[/yellow]")
 
 
 @app.command()
@@ -72,7 +135,7 @@ def submit(
 
         # Submit task to API
         with httpx.Client(timeout=30.0) as client:
-            response = client.post(f"{url}/tasks/submit", json=task_data)
+            response = client.post(f"{url}/tasks/submit", json=task_data, headers=get_user_header())
             response.raise_for_status()
             result = response.json()
 
@@ -104,7 +167,7 @@ def stop(
 
     try:
         with httpx.Client(timeout=30.0) as client:
-            response = client.post(f"{url}/tasks/{task_id}/stop")
+            response = client.post(f"{url}/tasks/{task_id}/stop", headers=get_user_header())
             response.raise_for_status()
             result = response.json()
 
@@ -136,7 +199,7 @@ def list(
 
     try:
         with httpx.Client(timeout=30.0) as client:
-            response = client.get(f"{url}/tasks")
+            response = client.get(f"{url}/tasks", headers=get_user_header())
             response.raise_for_status()
             result = response.json()
 
@@ -199,7 +262,7 @@ def status(
 
     try:
         with httpx.Client(timeout=30.0) as client:
-            response = client.get(f"{url}/tasks/{task_id}")
+            response = client.get(f"{url}/tasks/{task_id}", headers=get_user_header())
             response.raise_for_status()
             task = response.json()
 

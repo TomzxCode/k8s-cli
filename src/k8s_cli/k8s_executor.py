@@ -16,7 +16,7 @@ class KubernetesTaskExecutor:
         self.namespace = "default"
         self.task_label = "skypilot-task"
 
-    async def submit_task(self, task_def: TaskDefinition) -> str:
+    async def submit_task(self, task_def: TaskDefinition, username: str) -> str:
         """Submit a task to Kubernetes and return task ID"""
         task_id = str(uuid.uuid4())[:8]
         task_name = task_def.name or f"task-{task_id}"
@@ -50,6 +50,7 @@ class KubernetesTaskExecutor:
                     self.task_label: "true",
                     "task-id": task_id,
                     "task-name": task_name,
+                    "username": username,
                 },
                 "annotations": {
                     "created-at": datetime.utcnow().isoformat(),
@@ -62,6 +63,7 @@ class KubernetesTaskExecutor:
                         "labels": {
                             self.task_label: "true",
                             "task-id": task_id,
+                            "username": username,
                         }
                     },
                     "spec": {
@@ -78,11 +80,11 @@ class KubernetesTaskExecutor:
 
         return task_id
 
-    async def stop_task(self, task_id: str) -> bool:
+    async def stop_task(self, task_id: str, username: str) -> bool:
         """Stop a running task"""
         jobs = list(
             self.api.get(
-                "jobs", namespace=self.namespace, label_selector=f"task-id={task_id}"
+                "jobs", namespace=self.namespace, label_selector=f"task-id={task_id},username={username}"
             )
         )
 
@@ -94,13 +96,13 @@ class KubernetesTaskExecutor:
 
         return True
 
-    async def list_tasks(self) -> List[TaskStatus]:
-        """List all tasks"""
+    async def list_tasks(self, username: str) -> List[TaskStatus]:
+        """List all tasks for a specific user"""
         jobs = list(
             self.api.get(
                 "jobs",
                 namespace=self.namespace,
-                label_selector=f"{self.task_label}=true",
+                label_selector=f"{self.task_label}=true,username={username}",
             )
         )
 
@@ -111,11 +113,11 @@ class KubernetesTaskExecutor:
 
         return tasks
 
-    async def get_task_status(self, task_id: str) -> Optional[TaskStatus]:
-        """Get status of a specific task"""
+    async def get_task_status(self, task_id: str, username: str) -> Optional[TaskStatus]:
+        """Get status of a specific task for a specific user"""
         jobs = list(
             self.api.get(
-                "jobs", namespace=self.namespace, label_selector=f"task-id={task_id}"
+                "jobs", namespace=self.namespace, label_selector=f"task-id={task_id},username={username}"
             )
         )
 
