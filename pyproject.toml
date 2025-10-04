@@ -16,8 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-sky-k8s = "cli:app"
-sky-k8s-server = "api_server:main"
+sky-k8s = "sky_k8s.cli:app"
 
 [build-system]
 requires = ["hatchling"]

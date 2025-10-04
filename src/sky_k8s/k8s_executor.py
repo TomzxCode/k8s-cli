@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 import uuid
 import asyncio
 
-from task_models import TaskDefinition, TaskStatus
+from sky_k8s.task_models import TaskDefinition, TaskStatus
 
 
 class KubernetesTaskExecutor:
