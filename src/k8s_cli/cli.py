@@ -23,6 +23,21 @@ def get_api_url() -> str:
     return os.environ.get("SKY_K8S_API_URL", DEFAULT_API_URL)
 
 
+def handle_api_error(e: Exception) -> None:
+    """Handle API errors and exit"""
+    if isinstance(e, httpx.HTTPStatusError):
+        try:
+            error_detail = e.response.json().get('detail', e.response.text)
+        except:
+            error_detail = e.response.text
+        console.print(f"[red]Error: {error_detail}[/red]")
+    elif isinstance(e, httpx.HTTPError):
+        console.print(f"[red]Error communicating with API server: {e}[/red]")
+    else:
+        console.print(f"[red]Error: {e}[/red]")
+    raise typer.Exit(1)
+
+
 @app.command()
 def submit(
     task_file: Path = typer.Argument(..., help="Path to task YAML file"),
@@ -63,19 +78,8 @@ def submit(
     except yaml.YAMLError as e:
         console.print(f"[red]Error parsing YAML file: {e}[/red]")
         raise typer.Exit(1)
-    except httpx.HTTPStatusError as e:
-        try:
-            error_detail = e.response.json().get('detail', e.response.text)
-        except:
-            error_detail = e.response.text
-        console.print(f"[red]Error: {error_detail}[/red]")
-        raise typer.Exit(1)
-    except httpx.HTTPError as e:
-        console.print(f"[red]Error communicating with API server: {e}[/red]")
-        raise typer.Exit(1)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_api_error(e)
 
 
 @app.command()
@@ -101,19 +105,8 @@ def stop(
         console.print(f"  Task ID: [cyan]{result['task_id']}[/cyan]")
         console.print(f"  Status: {result['status']}")
 
-    except httpx.HTTPStatusError as e:
-        try:
-            error_detail = e.response.json().get('detail', e.response.text)
-        except:
-            error_detail = e.response.text
-        console.print(f"[red]Error: {error_detail}[/red]")
-        raise typer.Exit(1)
-    except httpx.HTTPError as e:
-        console.print(f"[red]Error communicating with API server: {e}[/red]")
-        raise typer.Exit(1)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_api_error(e)
 
 
 @app.command()
@@ -172,19 +165,8 @@ def list(
         console.print(table)
         console.print(f"\nTotal tasks: {len(tasks)}")
 
-    except httpx.HTTPStatusError as e:
-        try:
-            error_detail = e.response.json().get('detail', e.response.text)
-        except:
-            error_detail = e.response.text
-        console.print(f"[red]Error: {error_detail}[/red]")
-        raise typer.Exit(1)
-    except httpx.HTTPError as e:
-        console.print(f"[red]Error communicating with API server: {e}[/red]")
-        raise typer.Exit(1)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_api_error(e)
 
 
 @app.command()
@@ -218,19 +200,8 @@ def status(
             for key, value in task['metadata'].items():
                 console.print(f"  {key}: {value}")
 
-    except httpx.HTTPStatusError as e:
-        try:
-            error_detail = e.response.json().get('detail', e.response.text)
-        except:
-            error_detail = e.response.text
-        console.print(f"[red]Error: {error_detail}[/red]")
-        raise typer.Exit(1)
-    except httpx.HTTPError as e:
-        console.print(f"[red]Error communicating with API server: {e}[/red]")
-        raise typer.Exit(1)
     except Exception as e:
-        console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        handle_api_error(e)
 
 
 if __name__ == "__main__":
