@@ -81,7 +81,7 @@ class KubernetesTaskExecutor:
 
     async def stop_task(self, task_id: str) -> bool:
         """Stop a running task"""
-        jobs = await self.api.get("jobs", namespace=self.namespace, label_selector=f"task-id={task_id}")
+        jobs = list(self.api.get("jobs", namespace=self.namespace, label_selector=f"task-id={task_id}"))
 
         if not jobs:
             return False
@@ -93,7 +93,7 @@ class KubernetesTaskExecutor:
 
     async def list_tasks(self) -> List[TaskStatus]:
         """List all tasks"""
-        jobs = await self.api.get("jobs", namespace=self.namespace, label_selector=f"{self.task_label}=true")
+        jobs = list(self.api.get("jobs", namespace=self.namespace, label_selector=f"{self.task_label}=true"))
 
         tasks = []
         for job in jobs:
@@ -104,7 +104,7 @@ class KubernetesTaskExecutor:
 
     async def get_task_status(self, task_id: str) -> Optional[TaskStatus]:
         """Get status of a specific task"""
-        jobs = await self.api.get("jobs", namespace=self.namespace, label_selector=f"task-id={task_id}")
+        jobs = list(self.api.get("jobs", namespace=self.namespace, label_selector=f"task-id={task_id}"))
 
         if not jobs:
             return None
