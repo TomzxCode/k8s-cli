@@ -98,17 +98,24 @@ async def stop_task(task_id: str, x_user: str = Header(...)):
 
 
 @app.get("/tasks", response_model=TaskListResponse)
-async def list_tasks(x_user: str = Header(...)):
+async def list_tasks(x_user: str = Header(...), all_users: bool = False):
     """
-    List all tasks for the current user
+    List all tasks for the current user or all users
 
     Returns a list of all tasks with their current status.
+    If all_users is True, returns tasks from all users.
     """
     try:
-        logger.info(f"Listing tasks for user '{x_user}'")
-        executor: KubernetesTaskExecutor = app.state.executor
-        tasks = await executor.list_tasks(username=x_user)
-        logger.info(f"Found {len(tasks)} tasks for user '{x_user}'")
+        if all_users:
+            logger.info(f"Listing tasks for all users (requested by '{x_user}')")
+            executor: KubernetesTaskExecutor = app.state.executor
+            tasks = await executor.list_tasks(username=None)
+            logger.info(f"Found {len(tasks)} tasks for all users")
+        else:
+            logger.info(f"Listing tasks for user '{x_user}'")
+            executor: KubernetesTaskExecutor = app.state.executor
+            tasks = await executor.list_tasks(username=x_user)
+            logger.info(f"Found {len(tasks)} tasks for user '{x_user}'")
 
         return TaskListResponse(tasks=tasks)
     except Exception as e:

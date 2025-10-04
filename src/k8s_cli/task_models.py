@@ -37,6 +37,7 @@ class TaskStatus(BaseModel):
     status: str  # pending, running, completed, failed, stopped
     created_at: str
     updated_at: str
+    username: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
 

@@ -96,13 +96,18 @@ class KubernetesTaskExecutor:
 
         return True
 
-    async def list_tasks(self, username: str) -> List[TaskStatus]:
-        """List all tasks for a specific user"""
+    async def list_tasks(self, username: Optional[str] = None) -> List[TaskStatus]:
+        """List all tasks for a specific user or all users if username is None"""
+        if username:
+            label_selector = f"{self.task_label}=true,username={username}"
+        else:
+            label_selector = f"{self.task_label}=true"
+
         jobs = list(
             self.api.get(
                 "jobs",
                 namespace=self.namespace,
-                label_selector=f"{self.task_label}=true,username={username}",
+                label_selector=label_selector,
             )
         )
 
@@ -135,6 +140,7 @@ class KubernetesTaskExecutor:
 
         task_id = labels.get("task-id", "unknown")
         task_name = labels.get("task-name")
+        username = labels.get("username")
         created_at = annotations.get("created-at", "")
 
         # Determine status
@@ -153,6 +159,7 @@ class KubernetesTaskExecutor:
             status=task_status,
             created_at=created_at,
             updated_at=datetime.utcnow().isoformat(),
+            username=username,
             metadata={
                 "job_name": metadata.get("name"),
                 "namespace": metadata.get("namespace"),

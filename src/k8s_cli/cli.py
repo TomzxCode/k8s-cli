@@ -182,10 +182,13 @@ def stop(
 @app.command()
 def list(
     api_url: Optional[str] = typer.Option(
-        None, "--api-url", "-u", help="API server URL"
+        None, "--api-url", help="API server URL"
     ),
     show_details: bool = typer.Option(
         False, "--details", "-d", help="Show detailed information"
+    ),
+    all_users: bool = typer.Option(
+        False, "--all-users", "-u", help="List tasks from all users"
     ),
 ):
     """
@@ -194,12 +197,14 @@ def list(
     Example:
         sky-k8s list
         sky-k8s list --details
+        sky-k8s list -u  # List tasks from all users
     """
     url = api_url or get_api_url()
 
     try:
         with httpx.Client(timeout=30.0) as client:
-            response = client.get(f"{url}/tasks", headers=get_user_header())
+            params = {"all_users": "true"} if all_users else {}
+            response = client.get(f"{url}/tasks", headers=get_user_header(), params=params)
             response.raise_for_status()
             result = response.json()
 
@@ -216,6 +221,9 @@ def list(
         table.add_column("Status", style="green")
         table.add_column("Created", style="blue")
 
+        if all_users:
+            table.add_column("User", style="yellow")
+
         if show_details:
             table.add_column("Job Name", style="yellow")
             table.add_column("Namespace", style="white")
@@ -227,6 +235,9 @@ def list(
                 task["status"],
                 task["created_at"][:19] if task.get("created_at") else "-",
             ]
+
+            if all_users:
+                row.append(task.get("username", "-"))
 
             if show_details and task.get("metadata"):
                 row.extend(
