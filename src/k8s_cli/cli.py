@@ -63,6 +63,13 @@ def submit(
     except yaml.YAMLError as e:
         console.print(f"[red]Error parsing YAML file: {e}[/red]")
         raise typer.Exit(1)
+    except httpx.HTTPStatusError as e:
+        try:
+            error_detail = e.response.json().get('detail', e.response.text)
+        except:
+            error_detail = e.response.text
+        console.print(f"[red]Error: {error_detail}[/red]")
+        raise typer.Exit(1)
     except httpx.HTTPError as e:
         console.print(f"[red]Error communicating with API server: {e}[/red]")
         raise typer.Exit(1)
@@ -95,10 +102,11 @@ def stop(
         console.print(f"  Status: {result['status']}")
 
     except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
-            console.print(f"[red]Error: Task {task_id} not found[/red]")
-        else:
-            console.print(f"[red]Error: {e.response.text}[/red]")
+        try:
+            error_detail = e.response.json().get('detail', e.response.text)
+        except:
+            error_detail = e.response.text
+        console.print(f"[red]Error: {error_detail}[/red]")
         raise typer.Exit(1)
     except httpx.HTTPError as e:
         console.print(f"[red]Error communicating with API server: {e}[/red]")
@@ -164,6 +172,13 @@ def list(
         console.print(table)
         console.print(f"\nTotal tasks: {len(tasks)}")
 
+    except httpx.HTTPStatusError as e:
+        try:
+            error_detail = e.response.json().get('detail', e.response.text)
+        except:
+            error_detail = e.response.text
+        console.print(f"[red]Error: {error_detail}[/red]")
+        raise typer.Exit(1)
     except httpx.HTTPError as e:
         console.print(f"[red]Error communicating with API server: {e}[/red]")
         raise typer.Exit(1)
@@ -204,10 +219,11 @@ def status(
                 console.print(f"  {key}: {value}")
 
     except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
-            console.print(f"[red]Error: Task {task_id} not found[/red]")
-        else:
-            console.print(f"[red]Error: {e.response.text}[/red]")
+        try:
+            error_detail = e.response.json().get('detail', e.response.text)
+        except:
+            error_detail = e.response.text
+        console.print(f"[red]Error: {error_detail}[/red]")
         raise typer.Exit(1)
     except httpx.HTTPError as e:
         console.print(f"[red]Error communicating with API server: {e}[/red]")

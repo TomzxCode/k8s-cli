@@ -148,7 +148,7 @@ class KubernetesTaskExecutor:
         """Get container image for task"""
         if task_def.resources and task_def.resources.image_id:
             return task_def.resources.image_id
-        return "python:3.11-slim"
+        return "python:3.13-slim"
 
     def _build_command(self, task_def: TaskDefinition) -> str:
         """Build command to run in container"""
