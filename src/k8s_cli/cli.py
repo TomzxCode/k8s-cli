@@ -12,6 +12,8 @@ from rich.table import Table
 app = typer.Typer(
     name="k8s-cli", help="SkyPilot-compatible Kubernetes task launcher CLI"
 )
+auth_app = typer.Typer(help="Authentication commands")
+app.add_typer(auth_app, name="auth")
 jobs_app = typer.Typer(help="Manage jobs (tasks)")
 app.add_typer(jobs_app, name="jobs")
 volumes_app = typer.Typer(help="Manage volumes (PVCs)")
@@ -55,7 +57,7 @@ def get_user_header() -> dict:
     """Get user header for API requests"""
     user = get_current_user()
     if not user:
-        console.print("[red]Error: Not logged in. Run 'k8s-cli login <username>' first[/red]")
+        console.print("[red]Error: Not logged in. Run 'k8s-cli auth login <username>' first[/red]")
         raise typer.Exit(1)
     return {"X-User": user}
 
@@ -75,13 +77,13 @@ def handle_api_error(e: Exception) -> None:
     raise typer.Exit(1)
 
 
-@app.command()
+@auth_app.command()
 def login(username: str = typer.Argument(..., help="Username to log in as")):
     """
     Log in as a user
 
     Example:
-        k8s-cli login myusername
+        k8s-cli auth login myusername
     """
     try:
         save_user(username)
@@ -91,13 +93,13 @@ def login(username: str = typer.Argument(..., help="Username to log in as")):
         raise typer.Exit(1)
 
 
-@app.command()
+@auth_app.command()
 def whoami():
     """
     Show current logged-in user
 
     Example:
-        k8s-cli whoami
+        k8s-cli auth whoami
     """
     user = get_current_user()
     if user:
