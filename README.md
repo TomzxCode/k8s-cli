@@ -1,18 +1,18 @@
-# SkyPilot-Compatible Kubernetes Task Launcher
+# k8s-cli
 
-A lightweight alternative to SkyPilot that launches tasks on Kubernetes using the SkyPilot YAML specification.
+A lightweight SkyPilot-compatible Kubernetes task launcher that uses the SkyPilot YAML specification.
 
 ## Components
 
-- **API Server** (`api_server.py`): FastAPI server that handles task operations
-- **CLI** (`cli.py`): Command-line interface for interacting with the API server
-- **Kubernetes Executor** (`k8s_executor.py`): Executes tasks on Kubernetes using kr8s
-- **Task Models** (`task_models.py`): Pydantic models for task definitions and responses
+- **API Server** (`src/k8s_cli/api_server.py`): FastAPI server that handles task operations
+- **CLI** (`src/k8s_cli/cli.py`): Command-line interface for interacting with the API server
+- **Kubernetes Executor** (`src/k8s_cli/k8s_executor.py`): Executes tasks on Kubernetes using kr8s
+- **Task Models** (`src/k8s_cli/task_models.py`): Pydantic models for task definitions and responses
 
 ## Installation
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ pip install -r requirements.txt
 ### Start the API Server
 
 ```bash
-python api_server.py
+uv run python -m k8s_cli.api_server
 ```
 
 The server will start on `http://localhost:8000`.
@@ -50,31 +50,31 @@ run: |
 Submit the task:
 
 ```bash
-python cli.py submit example_task.yaml
+uv run k8s-cli submit example_task.yaml
 ```
 
 #### List Tasks
 
 ```bash
-python cli.py list
+uv run k8s-cli list
 ```
 
 With details:
 
 ```bash
-python cli.py list --details
+uv run k8s-cli list --details
 ```
 
 #### Check Task Status
 
 ```bash
-python cli.py status <task-id>
+uv run k8s-cli status <task-id>
 ```
 
 #### Stop a Task
 
 ```bash
-python cli.py stop <task-id>
+uv run k8s-cli stop <task-id>
 ```
 
 ### Environment Variables
