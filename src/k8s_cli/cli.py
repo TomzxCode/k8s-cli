@@ -12,6 +12,8 @@ from rich.table import Table
 app = typer.Typer(
     name="k8s-cli", help="SkyPilot-compatible Kubernetes task launcher CLI"
 )
+jobs_app = typer.Typer(help="Manage jobs (tasks)")
+app.add_typer(jobs_app, name="jobs")
 console = Console()
 
 # Default API server URL
@@ -102,7 +104,7 @@ def whoami():
         console.print("[yellow]Not logged in[/yellow]")
 
 
-@app.command()
+@jobs_app.command()
 def submit(
     task_file: Path = typer.Argument(..., help="Path to task YAML file"),
     api_url: Optional[str] = typer.Option(
@@ -113,7 +115,7 @@ def submit(
     Submit a task from a YAML file
 
     Example:
-        sky-k8s submit task.yaml
+        k8s-cli jobs submit task.yaml
     """
     url = api_url or get_api_url()
 
@@ -150,7 +152,7 @@ def submit(
         handle_api_error(e)
 
 
-@app.command()
+@jobs_app.command()
 def stop(
     task_id: str = typer.Argument(..., help="Task ID to stop"),
     api_url: Optional[str] = typer.Option(
@@ -161,7 +163,7 @@ def stop(
     Stop a running task
 
     Example:
-        sky-k8s stop abc123
+        k8s-cli jobs stop abc123
     """
     url = api_url or get_api_url()
 
@@ -179,7 +181,7 @@ def stop(
         handle_api_error(e)
 
 
-@app.command()
+@jobs_app.command()
 def list(
     api_url: Optional[str] = typer.Option(
         None, "--api-url", help="API server URL"
@@ -195,9 +197,9 @@ def list(
     List all tasks
 
     Example:
-        sky-k8s list
-        sky-k8s list --details
-        sky-k8s list -u  # List tasks from all users
+        k8s-cli jobs list
+        k8s-cli jobs list --details
+        k8s-cli jobs list -u  # List tasks from all users
     """
     url = api_url or get_api_url()
 
@@ -256,7 +258,7 @@ def list(
         handle_api_error(e)
 
 
-@app.command()
+@jobs_app.command()
 def status(
     task_id: str = typer.Argument(..., help="Task ID to check"),
     api_url: Optional[str] = typer.Option(
@@ -267,7 +269,7 @@ def status(
     Get status of a specific task
 
     Example:
-        sky-k8s status abc123
+        k8s-cli jobs status abc123
     """
     url = api_url or get_api_url()
 
