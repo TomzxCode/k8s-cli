@@ -4,7 +4,10 @@ A lightweight SkyPilot-compatible Kubernetes task launcher that uses the SkyPilo
 
 ## Components
 
-- **API Server** (`src/k8s_cli/api_server.py`): FastAPI server that handles task operations
+- **API Server** (`src/k8s_cli/api/`): FastAPI server that handles task operations
+  - `main.py`: Application initialization and configuration
+  - `tasks.py`: Task-related endpoints
+  - `volumes.py`: Volume-related endpoints
 - **CLI** (`src/k8s_cli/cli.py`): Command-line interface for interacting with the API server
 - **Kubernetes Executor** (`src/k8s_cli/k8s_executor.py`): Executes tasks on Kubernetes using kr8s
 - **Task Models** (`src/k8s_cli/task_models.py`): Pydantic models for task definitions and responses
@@ -20,7 +23,7 @@ uv sync
 ### Start the API Server
 
 ```bash
-uv run python -m k8s_cli.api_server
+uv run python -m k8s_cli.api.main
 ```
 
 The server will start on `http://localhost:8000`.
