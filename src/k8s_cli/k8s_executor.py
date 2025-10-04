@@ -3,9 +3,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import kr8s
-from kr8s.objects import Job
+from kr8s.objects import Job, PersistentVolumeClaim
 
-from k8s_cli.task_models import TaskDefinition, TaskStatus
+from k8s_cli.task_models import TaskDefinition, TaskStatus, VolumeDefinition, VolumeStatus
 
 
 class KubernetesTaskExecutor:
@@ -15,6 +15,7 @@ class KubernetesTaskExecutor:
         self.api = kr8s.api()
         self.namespace = "default"
         self.task_label = "skypilot-task"
+        self.volume_label = "skypilot-volume"
 
     async def submit_task(self, task_def: TaskDefinition, username: str) -> str:
         """Submit a task to Kubernetes and return task ID"""
@@ -209,3 +210,130 @@ class KubernetesTaskExecutor:
             resource_spec["limits"]["nvidia.com/gpu"] = gpu_count
 
         return resource_spec
+
+    async def create_volume(self, volume_def: VolumeDefinition, username: str) -> str:
+        """Create a PersistentVolumeClaim and return volume ID"""
+        volume_id = str(uuid.uuid4())[:8]
+        pvc_name = f"{volume_def.name}-{volume_id}"
+
+        pvc_spec = {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "metadata": {
+                "name": pvc_name,
+                "namespace": self.namespace,
+                "labels": {
+                    self.volume_label: "true",
+                    "volume-id": volume_id,
+                    "volume-name": volume_def.name,
+                    "username": username,
+                },
+                "annotations": {
+                    "created-at": datetime.utcnow().isoformat(),
+                },
+            },
+            "spec": {
+                "accessModes": volume_def.access_modes,
+                "resources": {
+                    "requests": {
+                        "storage": volume_def.size,
+                    }
+                },
+            },
+        }
+
+        if volume_def.storage_class:
+            pvc_spec["spec"]["storageClassName"] = volume_def.storage_class
+
+        pvc = PersistentVolumeClaim(pvc_spec)
+        await pvc.create()
+
+        return volume_id
+
+    async def delete_volume(self, volume_id: str, username: str) -> bool:
+        """Delete a PersistentVolumeClaim"""
+        pvcs = list(
+            self.api.get(
+                "persistentvolumeclaims",
+                namespace=self.namespace,
+                label_selector=f"volume-id={volume_id},username={username}",
+            )
+        )
+
+        if not pvcs:
+            return False
+
+        for pvc in pvcs:
+            await pvc.delete()
+
+        return True
+
+    async def list_volumes(self, username: Optional[str] = None) -> List[VolumeStatus]:
+        """List all volumes for a specific user or all users if username is None"""
+        if username:
+            label_selector = f"{self.volume_label}=true,username={username}"
+        else:
+            label_selector = f"{self.volume_label}=true"
+
+        pvcs = list(
+            self.api.get(
+                "persistentvolumeclaims",
+                namespace=self.namespace,
+                label_selector=label_selector,
+            )
+        )
+
+        volumes = []
+        for pvc in pvcs:
+            volume_status = await self._get_volume_status(pvc)
+            volumes.append(volume_status)
+
+        return volumes
+
+    async def get_volume_status(self, volume_id: str, username: str) -> Optional[VolumeStatus]:
+        """Get status of a specific volume for a specific user"""
+        pvcs = list(
+            self.api.get(
+                "persistentvolumeclaims",
+                namespace=self.namespace,
+                label_selector=f"volume-id={volume_id},username={username}",
+            )
+        )
+
+        if not pvcs:
+            return None
+
+        return await self._get_volume_status(pvcs[0])
+
+    async def _get_volume_status(self, pvc: PersistentVolumeClaim) -> VolumeStatus:
+        """Convert PVC object to VolumeStatus"""
+        metadata = pvc.raw.get("metadata", {})
+        spec = pvc.raw.get("spec", {})
+        status = pvc.raw.get("status", {})
+        labels = metadata.get("labels", {})
+        annotations = metadata.get("annotations", {})
+
+        volume_id = labels.get("volume-id", "unknown")
+        volume_name = labels.get("volume-name")
+        username = labels.get("username")
+        created_at = annotations.get("created-at", "")
+
+        size = spec.get("resources", {}).get("requests", {}).get("storage", "unknown")
+        storage_class = spec.get("storageClassName")
+        access_modes = spec.get("accessModes", [])
+        phase = status.get("phase", "Unknown")
+
+        return VolumeStatus(
+            volume_id=volume_id,
+            name=volume_name,
+            size=size,
+            storage_class=storage_class,
+            access_modes=access_modes,
+            status=phase,
+            created_at=created_at,
+            username=username,
+            metadata={
+                "pvc_name": metadata.get("name"),
+                "namespace": metadata.get("namespace"),
+            },
+        )

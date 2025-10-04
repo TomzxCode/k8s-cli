@@ -61,3 +61,48 @@ class TaskStopResponse(BaseModel):
     task_id: str
     status: str
     message: str
+
+
+class VolumeDefinition(BaseModel):
+    """Volume definition for creating a PVC"""
+
+    name: str
+    size: str  # e.g., "10Gi"
+    storage_class: Optional[str] = None
+    access_modes: Optional[List[str]] = Field(default_factory=lambda: ["ReadWriteOnce"])
+
+
+class VolumeStatus(BaseModel):
+    """Volume status information"""
+
+    volume_id: str
+    name: str
+    size: str
+    storage_class: Optional[str] = None
+    access_modes: List[str]
+    status: str  # Pending, Bound, Lost, etc.
+    created_at: str
+    username: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class VolumeCreateResponse(BaseModel):
+    """Response from volume creation"""
+
+    volume_id: str
+    status: str
+    message: str
+
+
+class VolumeListResponse(BaseModel):
+    """Response for listing volumes"""
+
+    volumes: List[VolumeStatus]
+
+
+class VolumeDeleteResponse(BaseModel):
+    """Response from deleting a volume"""
+
+    volume_id: str
+    status: str
+    message: str
