@@ -53,83 +53,100 @@ class KubernetesTaskExecutor:
         task_id = str(uuid.uuid4())[:8]
         task_name = task_def.name or f"task-{task_id}"
         sanitized_username = self._sanitize_username(username)
+        num_nodes = task_def.num_nodes
 
-        # Build container spec
-        container_spec = {
-            "name": "task",
-            "image": self._get_image(task_def),
-            "command": ["/bin/bash", "-c"],
-            "args": [self._build_command(task_def)],
-        }
+        # Create one job per node
+        for node_idx in range(num_nodes):
+            # Build container spec
+            container_spec = {
+                "name": "task",
+                "image": self._get_image(task_def),
+                "command": ["/bin/bash", "-c"],
+                "args": [self._build_command(task_def)],
+            }
 
-        # Add resource requests/limits
-        if task_def.resources:
-            container_spec["resources"] = self._build_resources(task_def.resources)
+            # Add resource requests/limits
+            if task_def.resources:
+                container_spec["resources"] = self._build_resources(task_def.resources)
 
-        # Add environment variables
-        if task_def.envs:
-            container_spec["env"] = [
-                {"name": k, "value": v} for k, v in task_def.envs.items()
-            ]
+            # Add environment variables
+            env_vars = []
+            if task_def.envs:
+                env_vars.extend([
+                    {"name": k, "value": v} for k, v in task_def.envs.items()
+                ])
 
-        # Add volume mounts to container
-        if task_def.volumes:
-            container_spec["volumeMounts"] = [
-                {"name": volume_name, "mountPath": mount_path}
-                for mount_path, volume_name in task_def.volumes.items()
-            ]
+            # Add node-specific environment variables
+            env_vars.extend([
+                {"name": "NODE_RANK", "value": str(node_idx)},
+                {"name": "NUM_NODES", "value": str(num_nodes)},
+            ])
 
-        # Build pod spec
-        pod_spec = {
-            "restartPolicy": "Never",
-            "containers": [container_spec],
-        }
+            if env_vars:
+                container_spec["env"] = env_vars
 
-        # Add volumes to pod spec
-        if task_def.volumes:
-            pod_spec["volumes"] = [
-                {
-                    "name": volume_name,
-                    "persistentVolumeClaim": {"claimName": self._resolve_pvc_name(volume_name, sanitized_username)},
-                }
-                for volume_name in task_def.volumes.values()
-            ]
+            # Add volume mounts to container
+            if task_def.volumes:
+                container_spec["volumeMounts"] = [
+                    {"name": volume_name, "mountPath": mount_path}
+                    for mount_path, volume_name in task_def.volumes.items()
+                ]
 
-        # Create Job specification
-        job_spec = {
-            "apiVersion": "batch/v1",
-            "kind": "Job",
-            "metadata": {
-                "name": f"{task_name}-{task_id}",
-                "namespace": self.namespace,
-                "labels": {
-                    self.task_label: "true",
-                    "task-id": task_id,
-                    "task-name": task_name,
-                    "username": sanitized_username,
-                },
-                "annotations": {
-                    "created-at": datetime.utcnow().isoformat(),
-                },
-            },
-            "spec": {
-                "backoffLimit": 0,
-                "template": {
-                    "metadata": {
-                        "labels": {
-                            self.task_label: "true",
-                            "task-id": task_id,
-                            "username": sanitized_username,
-                        }
+            # Build pod spec
+            pod_spec = {
+                "restartPolicy": "Never",
+                "containers": [container_spec],
+            }
+
+            # Add volumes to pod spec
+            if task_def.volumes:
+                pod_spec["volumes"] = [
+                    {
+                        "name": volume_name,
+                        "persistentVolumeClaim": {"claimName": self._resolve_pvc_name(volume_name, sanitized_username)},
+                    }
+                    for volume_name in task_def.volumes.values()
+                ]
+
+            # Create Job specification
+            job_name = f"{task_name}-{task_id}" if num_nodes == 1 else f"{task_name}-{task_id}-node-{node_idx}"
+            job_spec = {
+                "apiVersion": "batch/v1",
+                "kind": "Job",
+                "metadata": {
+                    "name": job_name,
+                    "namespace": self.namespace,
+                    "labels": {
+                        self.task_label: "true",
+                        "task-id": task_id,
+                        "task-name": task_name,
+                        "username": sanitized_username,
+                        "node-idx": str(node_idx),
                     },
-                    "spec": pod_spec,
+                    "annotations": {
+                        "created-at": datetime.utcnow().isoformat(),
+                        "num-nodes": str(num_nodes),
+                    },
                 },
-            },
-        }
+                "spec": {
+                    "backoffLimit": 0,
+                    "template": {
+                        "metadata": {
+                            "labels": {
+                                self.task_label: "true",
+                                "task-id": task_id,
+                                "username": sanitized_username,
+                                "node-idx": str(node_idx),
+                            }
+                        },
+                        "spec": pod_spec,
+                    },
+                },
+            }
 
-        # Create the job
-        job = Job(job_spec)
-        job.create()
+            # Create the job
+            job = Job(job_spec)
+            job.create()
 
         return task_id
 
@@ -192,9 +209,18 @@ class KubernetesTaskExecutor:
             )
         )
 
-        tasks = []
+        # Group jobs by task-id
+        task_jobs = {}
         for job in jobs:
-            task_status = self._get_task_status(job)
+            task_id = job.raw.get("metadata", {}).get("labels", {}).get("task-id", "unknown")
+            if task_id not in task_jobs:
+                task_jobs[task_id] = []
+            task_jobs[task_id].append(job)
+
+        # Aggregate status for each task
+        tasks = []
+        for task_id, jobs_list in task_jobs.items():
+            task_status = self._aggregate_task_status(jobs_list)
             tasks.append(task_status)
 
         return tasks
@@ -211,7 +237,76 @@ class KubernetesTaskExecutor:
         if not jobs:
             return None
 
-        return self._get_task_status(jobs[0])
+        return self._aggregate_task_status(jobs)
+
+    def _aggregate_task_status(self, jobs: List[Job]) -> TaskStatus:
+        """Aggregate status from multiple job objects (one per node)"""
+        if not jobs:
+            return None
+
+        # Get common metadata from first job
+        first_job = jobs[0]
+        metadata = first_job.raw.get("metadata", {})
+        labels = metadata.get("labels", {})
+        annotations = metadata.get("annotations", {})
+
+        task_id = labels.get("task-id", "unknown")
+        task_name = labels.get("task-name")
+        username = labels.get("username")
+        created_at = annotations.get("created-at", "")
+        num_nodes = int(annotations.get("num-nodes", "1"))
+
+        # Aggregate status from all nodes
+        succeeded_count = 0
+        failed_count = 0
+        running_count = 0
+        pending_count = 0
+
+        for job in jobs:
+            status = job.raw.get("status", {})
+            if status.get("succeeded", 0) > 0:
+                succeeded_count += 1
+            elif status.get("failed", 0) > 0:
+                failed_count += 1
+            elif status.get("active", 0) > 0:
+                running_count += 1
+            else:
+                pending_count += 1
+
+        # Determine overall task status
+        # Task is completed only if all nodes succeeded
+        if succeeded_count == len(jobs):
+            task_status = "completed"
+        # Task is failed if any node failed
+        elif failed_count > 0:
+            task_status = "failed"
+        # Task is running if any node is running
+        elif running_count > 0:
+            task_status = "running"
+        else:
+            task_status = "pending"
+
+        # Build metadata with node information
+        job_names = [job.raw.get("metadata", {}).get("name") for job in jobs]
+
+        return TaskStatus(
+            task_id=task_id,
+            name=task_name,
+            status=task_status,
+            created_at=created_at,
+            updated_at=datetime.utcnow().isoformat(),
+            username=username,
+            metadata={
+                "job_name": metadata.get("name"),
+                "namespace": metadata.get("namespace"),
+                "num_nodes": num_nodes,
+                "node_jobs": job_names,
+                "succeeded_nodes": succeeded_count,
+                "failed_nodes": failed_count,
+                "running_nodes": running_count,
+                "pending_nodes": pending_count,
+            },
+        )
 
     def _get_task_status(self, job: Job) -> TaskStatus:
         """Convert Job object to TaskStatus"""

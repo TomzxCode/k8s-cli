@@ -1,5 +1,5 @@
 name: example-training-job
-num_nodes: 1
+num_nodes: 2
 
 resources:
   cpus: "2"
@@ -26,4 +26,5 @@ setup: |
 run: |
   echo "Starting training with batch size: $BATCH_SIZE"
   echo "Running for $EPOCHS epochs"
-  python -c "print('Training job executed successfully')"
+  echo "Node rank: $NODE_RANK / Total nodes: $NUM_NODES"
+  python -c "import os; print(f'Training job executed successfully on node {os.getenv(\"NODE_RANK\")}/{os.getenv(\"NUM_NODES\")}')"
