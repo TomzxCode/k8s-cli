@@ -228,7 +228,7 @@ class KubernetesTaskExecutor:
         # Run main command
         commands.append(task_def.run)
 
-        return " && ".join(commands)
+        return "\n".join(commands)
 
     def _build_resources(self, resources) -> Dict[str, Any]:
         """Build Kubernetes resource requests/limits"""
