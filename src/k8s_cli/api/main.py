@@ -3,15 +3,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from k8s_cli.k8s_executor import KubernetesTaskExecutor
 from k8s_cli.api.tasks import router as tasks_router
 from k8s_cli.api.volumes import router as volumes_router
+from k8s_cli.k8s_executor import KubernetesTaskExecutor
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -45,6 +42,7 @@ async def root():
 
 if __name__ == "__main__":
     import os
+
     import uvicorn
 
     port = int(os.environ.get("K8S_CLI_API_PORT", "8000"))

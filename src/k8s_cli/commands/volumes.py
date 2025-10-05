@@ -1,4 +1,5 @@
 """Volume management commands"""
+
 from typing import Optional
 
 import httpx
@@ -14,15 +15,11 @@ volumes_app = typer.Typer(help="Manage volumes (PVCs)")
 def volumes_create(
     name: str = typer.Argument(..., help="Volume name"),
     size: str = typer.Argument(..., help="Volume size (e.g., '10Gi', '1Ti')"),
-    storage_class: Optional[str] = typer.Option(
-        None, "--storage-class", "-s", help="Storage class name"
-    ),
+    storage_class: Optional[str] = typer.Option(None, "--storage-class", "-s", help="Storage class name"),
     access_modes: Optional[str] = typer.Option(
         "ReadWriteOnce", "--access-modes", "-a", help="Access modes (comma-separated)"
     ),
-    api_url: Optional[str] = typer.Option(
-        None, "--api-url", help="API server URL"
-    ),
+    api_url: Optional[str] = typer.Option(None, "--api-url", help="API server URL"),
 ):
     """
     Create a new volume (PVC)
@@ -47,11 +44,7 @@ def volumes_create(
             volume_data["access_modes"] = [mode.strip() for mode in access_modes.split(",")]
 
         with httpx.Client(timeout=30.0) as client:
-            response = client.post(
-                f"{url}/volumes/create",
-                json=volume_data,
-                headers=get_user_header()
-            )
+            response = client.post(f"{url}/volumes/create", json=volume_data, headers=get_user_header())
             response.raise_for_status()
             result = response.json()
 
@@ -65,15 +58,9 @@ def volumes_create(
 
 @volumes_app.command("list")
 def volumes_list(
-    api_url: Optional[str] = typer.Option(
-        None, "--api-url", help="API server URL"
-    ),
-    show_details: bool = typer.Option(
-        False, "--details", "-d", help="Show detailed information"
-    ),
-    all_users: bool = typer.Option(
-        False, "--all-users", "-u", help="List volumes from all users"
-    ),
+    api_url: Optional[str] = typer.Option(None, "--api-url", help="API server URL"),
+    show_details: bool = typer.Option(False, "--details", "-d", help="Show detailed information"),
+    all_users: bool = typer.Option(False, "--all-users", "-u", help="List volumes from all users"),
 ):
     """
     List all volumes
@@ -127,11 +114,13 @@ def volumes_list(
                 row.append(volume.get("username", "-"))
 
             if show_details:
-                row.extend([
-                    volume.get("storage_class") or "-",
-                    ", ".join(volume.get("access_modes", [])),
-                    volume.get("metadata", {}).get("pvc_name", "-"),
-                ])
+                row.extend(
+                    [
+                        volume.get("storage_class") or "-",
+                        ", ".join(volume.get("access_modes", [])),
+                        volume.get("metadata", {}).get("pvc_name", "-"),
+                    ]
+                )
 
             table.add_row(*row)
 
@@ -145,12 +134,8 @@ def volumes_list(
 @volumes_app.command("delete")
 def volumes_delete(
     volume_id: str = typer.Argument(..., help="Volume ID to delete"),
-    api_url: Optional[str] = typer.Option(
-        None, "--api-url", help="API server URL"
-    ),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Skip confirmation"
-    ),
+    api_url: Optional[str] = typer.Option(None, "--api-url", help="API server URL"),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
 ):
     """
     Delete a volume
@@ -169,10 +154,7 @@ def volumes_delete(
 
     try:
         with httpx.Client(timeout=30.0) as client:
-            response = client.delete(
-                f"{url}/volumes/{volume_id}",
-                headers=get_user_header()
-            )
+            response = client.delete(f"{url}/volumes/{volume_id}", headers=get_user_header())
             response.raise_for_status()
             result = response.json()
 

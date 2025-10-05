@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import kr8s
-from kr8s.objects import Job, PersistentVolumeClaim, Pod
+from kr8s.objects import Job, PersistentVolumeClaim
 
 from k8s_cli.task_models import TaskDefinition, TaskStatus, VolumeDefinition, VolumeStatus
 
@@ -74,15 +74,15 @@ class KubernetesTaskExecutor:
             # Add environment variables
             env_vars = []
             if task_def.envs:
-                env_vars.extend([
-                    {"name": k, "value": v} for k, v in task_def.envs.items()
-                ])
+                env_vars.extend([{"name": k, "value": v} for k, v in task_def.envs.items()])
 
             # Add node-specific environment variables
-            env_vars.extend([
-                {"name": "NODE_RANK", "value": str(node_idx)},
-                {"name": "NUM_NODES", "value": str(num_nodes)},
-            ])
+            env_vars.extend(
+                [
+                    {"name": "NODE_RANK", "value": str(node_idx)},
+                    {"name": "NUM_NODES", "value": str(num_nodes)},
+                ]
+            )
 
             if env_vars:
                 container_spec["env"] = env_vars
@@ -564,11 +564,7 @@ class KubernetesTaskExecutor:
         is_multi_node = len(pods) > 1
         for pod in pods:
             node_idx = pod.raw.get("metadata", {}).get("labels", {}).get("node-idx", "0")
-            thread = threading.Thread(
-                target=stream_pod_logs,
-                args=(pod, node_idx, is_multi_node),
-                daemon=True
-            )
+            thread = threading.Thread(target=stream_pod_logs, args=(pod, node_idx, is_multi_node), daemon=True)
             thread.start()
             threads.append(thread)
 

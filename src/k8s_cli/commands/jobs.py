@@ -1,4 +1,5 @@
 """Job management commands"""
+
 from pathlib import Path
 from typing import Optional
 
@@ -15,12 +16,8 @@ jobs_app = typer.Typer(help="Manage jobs (tasks)")
 @jobs_app.command()
 def submit(
     task_file: Path = typer.Argument(..., help="Path to task YAML file"),
-    api_url: Optional[str] = typer.Option(
-        None, "--api-url", "-u", help="API server URL"
-    ),
-    detach: bool = typer.Option(
-        False, "--detach", "-d", help="Submit job without tailing logs"
-    ),
+    api_url: Optional[str] = typer.Option(None, "--api-url", "-u", help="API server URL"),
+    detach: bool = typer.Option(False, "--detach", "-d", help="Submit job without tailing logs"),
 ):
     """
     Submit a task from a YAML file
@@ -42,9 +39,7 @@ def submit(
 
         # Validate run command exists
         if "run" not in task_data:
-            console.print(
-                "[red]Error: 'run' field is required in task definition[/red]"
-            )
+            console.print("[red]Error: 'run' field is required in task definition[/red]")
             raise typer.Exit(1)
 
         # Submit task to API
@@ -59,7 +54,7 @@ def submit(
 
         # Tail logs unless detached
         if not detach:
-            _tail_task_logs(result['task_id'], url)
+            _tail_task_logs(result["task_id"], url)
 
     except yaml.YAMLError as e:
         console.print(f"[red]Error parsing YAML file: {e}[/red]")
@@ -90,15 +85,9 @@ def _tail_task_logs(task_id: str, api_url: str):
 @jobs_app.command()
 def stop(
     task_id: Optional[str] = typer.Argument(None, help="Task ID to stop"),
-    api_url: Optional[str] = typer.Option(
-        None, "--api-url", help="API server URL"
-    ),
-    all_tasks: bool = typer.Option(
-        False, "--all", "-a", help="Stop all tasks for current user"
-    ),
-    all_users: bool = typer.Option(
-        False, "--all-users", "-u", help="Stop tasks for all users (requires --all)"
-    ),
+    api_url: Optional[str] = typer.Option(None, "--api-url", help="API server URL"),
+    all_tasks: bool = typer.Option(False, "--all", "-a", help="Stop all tasks for current user"),
+    all_users: bool = typer.Option(False, "--all-users", "-u", help="Stop tasks for all users (requires --all)"),
 ):
     """
     Stop a running task or all tasks
@@ -151,15 +140,9 @@ def stop(
 
 @jobs_app.command()
 def list(
-    api_url: Optional[str] = typer.Option(
-        None, "--api-url", help="API server URL"
-    ),
-    show_details: bool = typer.Option(
-        False, "--details", "-d", help="Show detailed information"
-    ),
-    all_users: bool = typer.Option(
-        False, "--all-users", "-u", help="List tasks from all users"
-    ),
+    api_url: Optional[str] = typer.Option(None, "--api-url", help="API server URL"),
+    show_details: bool = typer.Option(False, "--details", "-d", help="Show detailed information"),
+    all_users: bool = typer.Option(False, "--all-users", "-u", help="List tasks from all users"),
 ):
     """
     List all tasks
@@ -232,9 +215,7 @@ def list(
 @jobs_app.command()
 def status(
     task_id: str = typer.Argument(..., help="Task ID to check"),
-    api_url: Optional[str] = typer.Option(
-        None, "--api-url", "-u", help="API server URL"
-    ),
+    api_url: Optional[str] = typer.Option(None, "--api-url", "-u", help="API server URL"),
 ):
     """
     Get status of a specific task
@@ -269,9 +250,7 @@ def status(
 @jobs_app.command()
 def logs(
     task_id: str = typer.Argument(..., help="Task ID to view logs for"),
-    api_url: Optional[str] = typer.Option(
-        None, "--api-url", "-u", help="API server URL"
-    ),
+    api_url: Optional[str] = typer.Option(None, "--api-url", "-u", help="API server URL"),
 ):
     """
     Tail logs from a running or completed task

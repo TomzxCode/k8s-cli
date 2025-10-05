@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 
 from k8s_cli.k8s_executor import KubernetesTaskExecutor
 from k8s_cli.task_models import (
@@ -115,6 +115,4 @@ def get_volume_status(request: Request, volume_id: str, x_user: str = Header(...
         raise
     except Exception as e:
         logger.error(f"Failed to get volume status for {volume_id} for user '{x_user}': {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get volume status: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get volume status: {str(e)}")

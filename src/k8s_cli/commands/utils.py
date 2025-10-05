@@ -1,4 +1,5 @@
 """Common utilities for CLI commands"""
+
 import json
 from pathlib import Path
 from typing import Optional
@@ -27,10 +28,10 @@ def get_current_user() -> Optional[str]:
     """Get current logged-in user from config file"""
     if USER_CONFIG_FILE.exists():
         try:
-            with open(USER_CONFIG_FILE, 'r') as f:
+            with open(USER_CONFIG_FILE, "r") as f:
                 config = json.load(f)
-                return config.get('username')
-        except:
+                return config.get("username")
+        except Exception:
             return None
     return None
 
@@ -38,8 +39,8 @@ def get_current_user() -> Optional[str]:
 def save_user(username: str) -> None:
     """Save username to config file"""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    with open(USER_CONFIG_FILE, 'w') as f:
-        json.dump({'username': username}, f)
+    with open(USER_CONFIG_FILE, "w") as f:
+        json.dump({"username": username}, f)
 
 
 def get_user_header() -> dict:

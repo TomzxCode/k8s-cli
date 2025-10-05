@@ -1,4 +1,5 @@
 """Authentication commands"""
+
 import typer
 
 from .utils import console, get_current_user, save_user
