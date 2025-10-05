@@ -543,17 +543,18 @@ class KubernetesTaskExecutor:
         def stream_pod_logs(pod, node_idx, is_multi_node):
             """Stream logs from a single pod into the queue"""
             try:
-                # Wait for pod to be running or completed
-                pod.wait("condition=Ready", timeout=300)
+                # Wait for pod to start (either running or terminated)
+                # Use a different condition that works for both successful and failed pods
+                pod.wait(["condition=PodScheduled"], timeout=300)
 
-                # Stream logs
+                # Stream logs (works for both running and terminated pods)
                 for line in pod.logs(follow=True):
                     if is_multi_node:
                         log_queue.put(f"node-{node_idx} | {line}")
                     else:
                         log_queue.put(line)
             except Exception:
-                # Pod may have terminated
+                # Pod may have terminated before logs could be retrieved
                 pass
             finally:
                 # Signal this thread is done
