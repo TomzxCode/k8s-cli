@@ -40,10 +40,12 @@ app.include_router(volumes_router)
 @app.get("/")
 async def root():
     """Health check endpoint"""
-    return {"status": "ok", "service": "skypilot-k8s-launcher"}
+    return {"status": "ok", "service": "k8s-cli-api"}
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("K8S_CLI_API_PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
