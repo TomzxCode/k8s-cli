@@ -18,12 +18,16 @@ def submit(
     api_url: Optional[str] = typer.Option(
         None, "--api-url", "-u", help="API server URL"
     ),
+    detach: bool = typer.Option(
+        False, "--detach", "-d", help="Submit job without tailing logs"
+    ),
 ):
     """
     Submit a task from a YAML file
 
     Example:
         k8s-cli jobs submit task.yaml
+        k8s-cli jobs submit task.yaml --detach
     """
     url = api_url or get_api_url()
 
@@ -53,11 +57,34 @@ def submit(
         console.print(f"  Task ID: [cyan]{result['task_id']}[/cyan]")
         console.print(f"  Status: {result['status']}")
 
+        # Tail logs unless detached
+        if not detach:
+            _tail_task_logs(result['task_id'], url)
+
     except yaml.YAMLError as e:
         console.print(f"[red]Error parsing YAML file: {e}[/red]")
         raise typer.Exit(1)
     except Exception as e:
         handle_api_error(e)
+
+
+def _tail_task_logs(task_id: str, api_url: str):
+    """Internal helper to tail logs for a task"""
+    try:
+        console.print(f"\n[blue]Tailing logs for task {task_id}...[/blue]")
+        console.print("[dim]Press Ctrl+C to stop tailing logs[/dim]\n")
+
+        with httpx.Client(timeout=None) as client:
+            with client.stream("GET", f"{api_url}/tasks/{task_id}/logs", headers=get_user_header()) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if line:
+                        console.print(line)
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Stopped tailing logs[/yellow]")
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not tail logs: {e}[/yellow]")
 
 
 @jobs_app.command()
@@ -234,3 +261,20 @@ def status(
 
     except Exception as e:
         handle_api_error(e)
+
+
+@jobs_app.command()
+def logs(
+    task_id: str = typer.Argument(..., help="Task ID to view logs for"),
+    api_url: Optional[str] = typer.Option(
+        None, "--api-url", "-u", help="API server URL"
+    ),
+):
+    """
+    Tail logs from a running or completed task
+
+    Example:
+        k8s-cli jobs logs abc123
+    """
+    url = api_url or get_api_url()
+    _tail_task_logs(task_id, url)

@@ -1,9 +1,11 @@
+import queue
+import threading
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import kr8s
-from kr8s.objects import Job, PersistentVolumeClaim
+from kr8s.objects import Job, PersistentVolumeClaim, Pod
 
 from k8s_cli.task_models import TaskDefinition, TaskStatus, VolumeDefinition, VolumeStatus
 
@@ -517,3 +519,64 @@ class KubernetesTaskExecutor:
                 "namespace": metadata.get("namespace"),
             },
         )
+
+    def tail_logs(self, task_id: str, username: str):
+        """Tail logs from all pods of a task in parallel. Yields log lines as they arrive."""
+        sanitized_username = self._sanitize_username(username)
+
+        # Get all pods for this task
+        pods = list(
+            self.api.get(
+                "pods",
+                namespace=self.namespace,
+                label_selector=f"task-id={task_id},username={sanitized_username}",
+            )
+        )
+
+        if not pods:
+            return
+
+        # Use a queue to collect logs from all pods in parallel
+        log_queue = queue.Queue()
+        threads = []
+
+        def stream_pod_logs(pod, node_idx, is_multi_node):
+            """Stream logs from a single pod into the queue"""
+            try:
+                # Wait for pod to be running or completed
+                pod.wait("condition=Ready", timeout=300)
+
+                # Stream logs
+                for line in pod.logs(follow=True):
+                    if is_multi_node:
+                        log_queue.put(f"node-{node_idx} | {line}")
+                    else:
+                        log_queue.put(line)
+            except Exception:
+                # Pod may have terminated
+                pass
+            finally:
+                # Signal this thread is done
+                log_queue.put(None)
+
+        # Start a thread for each pod
+        is_multi_node = len(pods) > 1
+        for pod in pods:
+            node_idx = pod.raw.get("metadata", {}).get("labels", {}).get("node-idx", "0")
+            thread = threading.Thread(
+                target=stream_pod_logs,
+                args=(pod, node_idx, is_multi_node),
+                daemon=True
+            )
+            thread.start()
+            threads.append(thread)
+
+        # Yield logs as they arrive from any pod
+        active_threads = len(threads)
+        while active_threads > 0:
+            line = log_queue.get()
+            if line is None:
+                # A thread has finished
+                active_threads -= 1
+            else:
+                yield line

@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi.responses import StreamingResponse
 
 from k8s_cli.k8s_executor import KubernetesTaskExecutor
 from k8s_cli.task_models import (
@@ -149,4 +150,31 @@ def get_task_status(request: Request, task_id: str, x_user: str = Header(...)):
         logger.error(f"Failed to get task status for {task_id} for user '{x_user}': {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to get task status: {str(e)}"
+        )
+
+
+@router.get("/{task_id}/logs")
+def tail_task_logs(request: Request, task_id: str, x_user: str = Header(...)):
+    """
+    Stream logs from a running task
+
+    Returns a stream of log lines from all pods associated with the task.
+    """
+    try:
+        logger.info(f"Tailing logs for task: {task_id} for user '{x_user}'")
+        executor: KubernetesTaskExecutor = request.app.state.executor
+
+        def log_generator():
+            try:
+                for line in executor.tail_logs(task_id, username=x_user):
+                    yield f"{line}\n"
+            except Exception as e:
+                logger.error(f"Error streaming logs for task {task_id}: {str(e)}", exc_info=True)
+                yield f"Error: {str(e)}\n"
+
+        return StreamingResponse(log_generator(), media_type="text/plain")
+    except Exception as e:
+        logger.error(f"Failed to start log tailing for {task_id} for user '{x_user}': {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to tail logs: {str(e)}"
         )
