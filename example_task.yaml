@@ -12,6 +12,13 @@ envs:
   EPOCHS: "10"
   MODEL_NAME: "resnet50"
 
+# Optional: Mount volumes into the task container
+# Create volumes first using: k8s-cli volume create <name> <size>
+# Syntax: volumes maps mount_path to volume_name
+#volumes:
+#  /data: training-data
+#  /checkpoints: model-checkpoints
+
 setup: |
   pip install numpy pandas
   echo "Setup completed"

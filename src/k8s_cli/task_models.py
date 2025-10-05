@@ -25,6 +25,7 @@ class TaskDefinition(BaseModel):
     resources: Optional[Resources] = None
     envs: Optional[Dict[str, str]] = None
     file_mounts: Optional[Dict[str, str]] = None
+    volumes: Optional[Dict[str, str]] = None  # {mount_path: volume_name}
     setup: Optional[str] = None
     run: str
 

@@ -27,6 +27,27 @@ class KubernetesTaskExecutor:
         """
         return username.replace("@", "-")
 
+    def _resolve_pvc_name(self, volume_name: str, sanitized_username: str) -> str:
+        """Resolve volume name to actual PVC name.
+
+        First tries to find a PVC with matching volume-name label for the user.
+        If not found, assumes volume_name is the actual PVC name.
+        """
+        pvcs = list(
+            self.api.get(
+                "persistentvolumeclaims",
+                namespace=self.namespace,
+                label_selector=f"{self.volume_label}=true,volume-name={volume_name},username={sanitized_username}",
+            )
+        )
+
+        if pvcs:
+            # Found a PVC with matching volume-name label
+            return pvcs[0].raw.get("metadata", {}).get("name", volume_name)
+
+        # Assume volume_name is the actual PVC name
+        return volume_name
+
     def submit_task(self, task_def: TaskDefinition, username: str) -> str:
         """Submit a task to Kubernetes and return task ID"""
         task_id = str(uuid.uuid4())[:8]
@@ -49,6 +70,29 @@ class KubernetesTaskExecutor:
         if task_def.envs:
             container_spec["env"] = [
                 {"name": k, "value": v} for k, v in task_def.envs.items()
+            ]
+
+        # Add volume mounts to container
+        if task_def.volumes:
+            container_spec["volumeMounts"] = [
+                {"name": volume_name, "mountPath": mount_path}
+                for mount_path, volume_name in task_def.volumes.items()
+            ]
+
+        # Build pod spec
+        pod_spec = {
+            "restartPolicy": "Never",
+            "containers": [container_spec],
+        }
+
+        # Add volumes to pod spec
+        if task_def.volumes:
+            pod_spec["volumes"] = [
+                {
+                    "name": volume_name,
+                    "persistentVolumeClaim": {"claimName": self._resolve_pvc_name(volume_name, sanitized_username)},
+                }
+                for volume_name in task_def.volumes.values()
             ]
 
         # Create Job specification
@@ -78,10 +122,7 @@ class KubernetesTaskExecutor:
                             "username": sanitized_username,
                         }
                     },
-                    "spec": {
-                        "restartPolicy": "Never",
-                        "containers": [container_spec],
-                    },
+                    "spec": pod_spec,
                 },
             },
         }
