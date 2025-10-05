@@ -8,6 +8,11 @@ k8s-cli is a lightweight SkyPilot-compatible Kubernetes task launcher that enabl
 **Default Namespace:** `default`
 **Label Prefix:** `skypilot-`
 
+## Documentation
+
+- [Task Management Guide](docs/tasks.md) - Complete guide to submitting and managing tasks
+- [Volume Management Guide](docs/volumes.md) - Guide to creating and using persistent volumes
+
 ---
 
 ## Architecture Components
