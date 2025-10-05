@@ -17,10 +17,21 @@ class KubernetesTaskExecutor:
         self.task_label = "skypilot-task"
         self.volume_label = "skypilot-volume"
 
+    def _sanitize_username(self, username: str) -> str:
+        """Sanitize username for use in Kubernetes labels.
+
+        Replaces characters not allowed in DNS-1123 subdomain labels:
+        - '@' becomes '-'
+
+        Example: first.last@domain.com -> first.last-domain.com
+        """
+        return username.replace("@", "-")
+
     async def submit_task(self, task_def: TaskDefinition, username: str) -> str:
         """Submit a task to Kubernetes and return task ID"""
         task_id = str(uuid.uuid4())[:8]
         task_name = task_def.name or f"task-{task_id}"
+        sanitized_username = self._sanitize_username(username)
 
         # Build container spec
         container_spec = {
@@ -51,7 +62,7 @@ class KubernetesTaskExecutor:
                     self.task_label: "true",
                     "task-id": task_id,
                     "task-name": task_name,
-                    "username": username,
+                    "username": sanitized_username,
                 },
                 "annotations": {
                     "created-at": datetime.utcnow().isoformat(),
@@ -64,7 +75,7 @@ class KubernetesTaskExecutor:
                         "labels": {
                             self.task_label: "true",
                             "task-id": task_id,
-                            "username": username,
+                            "username": sanitized_username,
                         }
                     },
                     "spec": {
@@ -83,9 +94,10 @@ class KubernetesTaskExecutor:
 
     async def stop_task(self, task_id: str, username: str) -> bool:
         """Stop a running task"""
+        sanitized_username = self._sanitize_username(username)
         jobs = list(
             self.api.get(
-                "jobs", namespace=self.namespace, label_selector=f"task-id={task_id},username={username}"
+                "jobs", namespace=self.namespace, label_selector=f"task-id={task_id},username={sanitized_username}"
             )
         )
 
@@ -100,7 +112,8 @@ class KubernetesTaskExecutor:
     async def list_tasks(self, username: Optional[str] = None) -> List[TaskStatus]:
         """List all tasks for a specific user or all users if username is None"""
         if username:
-            label_selector = f"{self.task_label}=true,username={username}"
+            sanitized_username = self._sanitize_username(username)
+            label_selector = f"{self.task_label}=true,username={sanitized_username}"
         else:
             label_selector = f"{self.task_label}=true"
 
@@ -121,9 +134,10 @@ class KubernetesTaskExecutor:
 
     async def get_task_status(self, task_id: str, username: str) -> Optional[TaskStatus]:
         """Get status of a specific task for a specific user"""
+        sanitized_username = self._sanitize_username(username)
         jobs = list(
             self.api.get(
-                "jobs", namespace=self.namespace, label_selector=f"task-id={task_id},username={username}"
+                "jobs", namespace=self.namespace, label_selector=f"task-id={task_id},username={sanitized_username}"
             )
         )
 
@@ -215,6 +229,7 @@ class KubernetesTaskExecutor:
         """Create a PersistentVolumeClaim and return volume ID"""
         volume_id = str(uuid.uuid4())[:8]
         pvc_name = f"{volume_def.name}-{volume_id}"
+        sanitized_username = self._sanitize_username(username)
 
         pvc_spec = {
             "apiVersion": "v1",
@@ -226,7 +241,7 @@ class KubernetesTaskExecutor:
                     self.volume_label: "true",
                     "volume-id": volume_id,
                     "volume-name": volume_def.name,
-                    "username": username,
+                    "username": sanitized_username,
                 },
                 "annotations": {
                     "created-at": datetime.utcnow().isoformat(),
@@ -252,11 +267,12 @@ class KubernetesTaskExecutor:
 
     async def delete_volume(self, volume_id: str, username: str) -> bool:
         """Delete a PersistentVolumeClaim"""
+        sanitized_username = self._sanitize_username(username)
         pvcs = list(
             self.api.get(
                 "persistentvolumeclaims",
                 namespace=self.namespace,
-                label_selector=f"volume-id={volume_id},username={username}",
+                label_selector=f"volume-id={volume_id},username={sanitized_username}",
             )
         )
 
@@ -271,7 +287,8 @@ class KubernetesTaskExecutor:
     async def list_volumes(self, username: Optional[str] = None) -> List[VolumeStatus]:
         """List all volumes for a specific user or all users if username is None"""
         if username:
-            label_selector = f"{self.volume_label}=true,username={username}"
+            sanitized_username = self._sanitize_username(username)
+            label_selector = f"{self.volume_label}=true,username={sanitized_username}"
         else:
             label_selector = f"{self.volume_label}=true"
 
@@ -292,11 +309,12 @@ class KubernetesTaskExecutor:
 
     async def get_volume_status(self, volume_id: str, username: str) -> Optional[VolumeStatus]:
         """Get status of a specific volume for a specific user"""
+        sanitized_username = self._sanitize_username(username)
         pvcs = list(
             self.api.get(
                 "persistentvolumeclaims",
                 namespace=self.namespace,
-                label_selector=f"volume-id={volume_id},username={username}",
+                label_selector=f"volume-id={volume_id},username={sanitized_username}",
             )
         )
 
