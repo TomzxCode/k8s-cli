@@ -22,9 +22,11 @@ k8s-cli = "k8s_cli.cli:app"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.uv]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "ruff>=0.8.0,<1.0.0",
+    "mkdocs>=1.5.0",
+    "mkdocs-material[imaging]>=9.4.0",
 ]
 
 [tool.ruff]
