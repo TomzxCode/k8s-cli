@@ -4,7 +4,7 @@ num_nodes: 1
 resources:
   cpus: "2"
   memory: "4Gi"
-  accelerators: "1"
+  #accelerators: H200:1
   image_id: "python:3.11-slim"
 
 envs:
@@ -13,7 +13,7 @@ envs:
   MODEL_NAME: "resnet50"
 
 setup: |
-  pip install numpy pandas torch torchvision
+  pip install numpy pandas
   echo "Setup completed"
 
 run: |
