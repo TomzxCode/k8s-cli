@@ -63,6 +63,14 @@ class TaskStopResponse(BaseModel):
     message: str
 
 
+class TaskStopAllResponse(BaseModel):
+    """Response from stopping all tasks"""
+
+    count: int
+    status: str
+    message: str
+
+
 class VolumeDefinition(BaseModel):
     """Volume definition for creating a PVC"""
 

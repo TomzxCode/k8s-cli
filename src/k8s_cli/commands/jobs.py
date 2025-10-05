@@ -62,28 +62,61 @@ def submit(
 
 @jobs_app.command()
 def stop(
-    task_id: str = typer.Argument(..., help="Task ID to stop"),
+    task_id: Optional[str] = typer.Argument(None, help="Task ID to stop"),
     api_url: Optional[str] = typer.Option(
-        None, "--api-url", "-u", help="API server URL"
+        None, "--api-url", help="API server URL"
+    ),
+    all_tasks: bool = typer.Option(
+        False, "--all", "-a", help="Stop all tasks for current user"
+    ),
+    all_users: bool = typer.Option(
+        False, "--all-users", "-u", help="Stop tasks for all users (requires --all)"
     ),
 ):
     """
-    Stop a running task
+    Stop a running task or all tasks
 
-    Example:
-        k8s-cli jobs stop abc123
+    Examples:
+        k8s-cli jobs stop abc123              # Stop a specific task
+        k8s-cli jobs stop --all               # Stop all tasks for current user
+        k8s-cli jobs stop --all --all-users   # Stop all tasks for all users
     """
     url = api_url or get_api_url()
 
+    # Validate arguments
+    if all_users and not all_tasks:
+        console.print("[red]Error: --all-users requires --all flag[/red]")
+        raise typer.Exit(1)
+
+    if not all_tasks and not task_id:
+        console.print("[red]Error: Either provide a task ID or use --all flag[/red]")
+        raise typer.Exit(1)
+
+    if all_tasks and task_id:
+        console.print("[red]Error: Cannot specify task ID with --all flag[/red]")
+        raise typer.Exit(1)
+
     try:
         with httpx.Client(timeout=30.0) as client:
-            response = client.post(f"{url}/tasks/{task_id}/stop", headers=get_user_header())
-            response.raise_for_status()
-            result = response.json()
+            if all_tasks:
+                # Stop all tasks
+                params = {"all_users": "true"} if all_users else {}
+                response = client.post(f"{url}/tasks/stop", headers=get_user_header(), params=params)
+                response.raise_for_status()
+                result = response.json()
 
-        console.print("[green]✓ Task stopped successfully[/green]")
-        console.print(f"  Task ID: [cyan]{result['task_id']}[/cyan]")
-        console.print(f"  Status: {result['status']}")
+                console.print("[green]✓ Tasks stopped successfully[/green]")
+                console.print(f"  Count: [cyan]{result['count']}[/cyan]")
+                console.print(f"  Status: {result['status']}")
+            else:
+                # Stop single task
+                response = client.post(f"{url}/tasks/{task_id}/stop", headers=get_user_header())
+                response.raise_for_status()
+                result = response.json()
+
+                console.print("[green]✓ Task stopped successfully[/green]")
+                console.print(f"  Task ID: [cyan]{result['task_id']}[/cyan]")
+                console.print(f"  Status: {result['status']}")
 
     except Exception as e:
         handle_api_error(e)

@@ -7,6 +7,7 @@ from k8s_cli.task_models import (
     TaskDefinition,
     TaskListResponse,
     TaskStatus,
+    TaskStopAllResponse,
     TaskStopResponse,
     TaskSubmitResponse,
 )
@@ -67,6 +68,36 @@ def stop_task(request: Request, task_id: str, x_user: str = Header(...)):
     except Exception as e:
         logger.error(f"Failed to stop task {task_id} for user '{x_user}': {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to stop task: {str(e)}")
+
+
+@router.post("/stop", response_model=TaskStopAllResponse)
+def stop_all_tasks(request: Request, x_user: str = Header(...), all_users: bool = False):
+    """
+    Stop all tasks for current user or all users
+
+    Terminates all Kubernetes Jobs for the user, or all users if all_users is True.
+    """
+    try:
+        executor: KubernetesTaskExecutor = request.app.state.executor
+        if all_users:
+            logger.info(f"User '{x_user}' stopping all tasks for all users")
+            count = executor.stop_all_tasks(username=None)
+            logger.info(f"Stopped {count} tasks for all users")
+            message = f"Stopped {count} tasks for all users"
+        else:
+            logger.info(f"User '{x_user}' stopping all their tasks")
+            count = executor.stop_all_tasks(username=x_user)
+            logger.info(f"Stopped {count} tasks for user '{x_user}'")
+            message = f"Stopped {count} tasks"
+
+        return TaskStopAllResponse(
+            count=count,
+            status="stopped",
+            message=message,
+        )
+    except Exception as e:
+        logger.error(f"Failed to stop all tasks for user '{x_user}': {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to stop all tasks: {str(e)}")
 
 
 @router.get("", response_model=TaskListResponse)

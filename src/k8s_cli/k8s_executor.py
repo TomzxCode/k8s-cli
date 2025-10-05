@@ -109,6 +109,32 @@ class KubernetesTaskExecutor:
 
         return True
 
+    def stop_all_tasks(self, username: Optional[str] = None) -> int:
+        """Stop all tasks for a user or all users if username is None
+
+        Returns the number of tasks stopped
+        """
+        if username:
+            sanitized_username = self._sanitize_username(username)
+            label_selector = f"{self.task_label}=true,username={sanitized_username}"
+        else:
+            label_selector = f"{self.task_label}=true"
+
+        jobs = list(
+            self.api.get(
+                "jobs",
+                namespace=self.namespace,
+                label_selector=label_selector,
+            )
+        )
+
+        count = 0
+        for job in jobs:
+            job.delete(propagation_policy="Background")
+            count += 1
+
+        return count
+
     def list_tasks(self, username: Optional[str] = None) -> List[TaskStatus]:
         """List all tasks for a specific user or all users if username is None"""
         if username:
