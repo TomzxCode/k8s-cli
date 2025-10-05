@@ -27,7 +27,7 @@ class KubernetesTaskExecutor:
         """
         return username.replace("@", "-")
 
-    async def submit_task(self, task_def: TaskDefinition, username: str) -> str:
+    def submit_task(self, task_def: TaskDefinition, username: str) -> str:
         """Submit a task to Kubernetes and return task ID"""
         task_id = str(uuid.uuid4())[:8]
         task_name = task_def.name or f"task-{task_id}"
@@ -88,11 +88,11 @@ class KubernetesTaskExecutor:
 
         # Create the job
         job = Job(job_spec)
-        await job.create()
+        job.create()
 
         return task_id
 
-    async def stop_task(self, task_id: str, username: str) -> bool:
+    def stop_task(self, task_id: str, username: str) -> bool:
         """Stop a running task"""
         sanitized_username = self._sanitize_username(username)
         jobs = list(
@@ -105,11 +105,11 @@ class KubernetesTaskExecutor:
             return False
 
         for job in jobs:
-            await job.delete(propagation_policy="Background")
+            job.delete(propagation_policy="Background")
 
         return True
 
-    async def list_tasks(self, username: Optional[str] = None) -> List[TaskStatus]:
+    def list_tasks(self, username: Optional[str] = None) -> List[TaskStatus]:
         """List all tasks for a specific user or all users if username is None"""
         if username:
             sanitized_username = self._sanitize_username(username)
@@ -127,12 +127,12 @@ class KubernetesTaskExecutor:
 
         tasks = []
         for job in jobs:
-            task_status = await self._get_task_status(job)
+            task_status = self._get_task_status(job)
             tasks.append(task_status)
 
         return tasks
 
-    async def get_task_status(self, task_id: str, username: str) -> Optional[TaskStatus]:
+    def get_task_status(self, task_id: str, username: str) -> Optional[TaskStatus]:
         """Get status of a specific task for a specific user"""
         sanitized_username = self._sanitize_username(username)
         jobs = list(
@@ -144,9 +144,9 @@ class KubernetesTaskExecutor:
         if not jobs:
             return None
 
-        return await self._get_task_status(jobs[0])
+        return self._get_task_status(jobs[0])
 
-    async def _get_task_status(self, job: Job) -> TaskStatus:
+    def _get_task_status(self, job: Job) -> TaskStatus:
         """Convert Job object to TaskStatus"""
         metadata = job.raw.get("metadata", {})
         status = job.raw.get("status", {})
@@ -225,7 +225,7 @@ class KubernetesTaskExecutor:
 
         return resource_spec
 
-    async def create_volume(self, volume_def: VolumeDefinition, username: str) -> str:
+    def create_volume(self, volume_def: VolumeDefinition, username: str) -> str:
         """Create a PersistentVolumeClaim and return volume ID"""
         volume_id = str(uuid.uuid4())[:8]
         pvc_name = f"{volume_def.name}-{volume_id}"
@@ -261,11 +261,11 @@ class KubernetesTaskExecutor:
             pvc_spec["spec"]["storageClassName"] = volume_def.storage_class
 
         pvc = PersistentVolumeClaim(pvc_spec)
-        await pvc.create()
+        pvc.create()
 
         return volume_id
 
-    async def delete_volume(self, volume_id: str, username: str) -> bool:
+    def delete_volume(self, volume_id: str, username: str) -> bool:
         """Delete a PersistentVolumeClaim"""
         sanitized_username = self._sanitize_username(username)
         pvcs = list(
@@ -280,11 +280,11 @@ class KubernetesTaskExecutor:
             return False
 
         for pvc in pvcs:
-            await pvc.delete()
+            pvc.delete()
 
         return True
 
-    async def list_volumes(self, username: Optional[str] = None) -> List[VolumeStatus]:
+    def list_volumes(self, username: Optional[str] = None) -> List[VolumeStatus]:
         """List all volumes for a specific user or all users if username is None"""
         if username:
             sanitized_username = self._sanitize_username(username)
@@ -302,12 +302,12 @@ class KubernetesTaskExecutor:
 
         volumes = []
         for pvc in pvcs:
-            volume_status = await self._get_volume_status(pvc)
+            volume_status = self._get_volume_status(pvc)
             volumes.append(volume_status)
 
         return volumes
 
-    async def get_volume_status(self, volume_id: str, username: str) -> Optional[VolumeStatus]:
+    def get_volume_status(self, volume_id: str, username: str) -> Optional[VolumeStatus]:
         """Get status of a specific volume for a specific user"""
         sanitized_username = self._sanitize_username(username)
         pvcs = list(
@@ -321,9 +321,9 @@ class KubernetesTaskExecutor:
         if not pvcs:
             return None
 
-        return await self._get_volume_status(pvcs[0])
+        return self._get_volume_status(pvcs[0])
 
-    async def _get_volume_status(self, pvc: PersistentVolumeClaim) -> VolumeStatus:
+    def _get_volume_status(self, pvc: PersistentVolumeClaim) -> VolumeStatus:
         """Convert PVC object to VolumeStatus"""
         metadata = pvc.raw.get("metadata", {})
         spec = pvc.raw.get("spec", {})

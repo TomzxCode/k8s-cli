@@ -17,7 +17,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 @router.post("/submit", response_model=TaskSubmitResponse)
-async def submit_task(request: Request, task: TaskDefinition, x_user: str = Header(...)):
+def submit_task(request: Request, task: TaskDefinition, x_user: str = Header(...)):
     """
     Submit a new task to Kubernetes
 
@@ -27,7 +27,7 @@ async def submit_task(request: Request, task: TaskDefinition, x_user: str = Head
     try:
         logger.info(f"User '{x_user}' submitting task: {task.name or 'unnamed'}")
         executor: KubernetesTaskExecutor = request.app.state.executor
-        task_id = await executor.submit_task(task, username=x_user)
+        task_id = executor.submit_task(task, username=x_user)
         logger.info(f"Task submitted successfully with ID: {task_id} for user '{x_user}'")
 
         return TaskSubmitResponse(
@@ -41,7 +41,7 @@ async def submit_task(request: Request, task: TaskDefinition, x_user: str = Head
 
 
 @router.post("/{task_id}/stop", response_model=TaskStopResponse)
-async def stop_task(request: Request, task_id: str, x_user: str = Header(...)):
+def stop_task(request: Request, task_id: str, x_user: str = Header(...)):
     """
     Stop a running task
 
@@ -50,7 +50,7 @@ async def stop_task(request: Request, task_id: str, x_user: str = Header(...)):
     try:
         logger.info(f"User '{x_user}' stopping task: {task_id}")
         executor: KubernetesTaskExecutor = request.app.state.executor
-        success = await executor.stop_task(task_id, username=x_user)
+        success = executor.stop_task(task_id, username=x_user)
 
         if not success:
             logger.warning(f"Task not found: {task_id} for user '{x_user}'")
@@ -70,7 +70,7 @@ async def stop_task(request: Request, task_id: str, x_user: str = Header(...)):
 
 
 @router.get("", response_model=TaskListResponse)
-async def list_tasks(request: Request, x_user: str = Header(...), all_users: bool = False):
+def list_tasks(request: Request, x_user: str = Header(...), all_users: bool = False):
     """
     List all tasks for the current user or all users
 
@@ -81,11 +81,11 @@ async def list_tasks(request: Request, x_user: str = Header(...), all_users: boo
         executor: KubernetesTaskExecutor = request.app.state.executor
         if all_users:
             logger.info(f"Listing tasks for all users (requested by '{x_user}')")
-            tasks = await executor.list_tasks(username=None)
+            tasks = executor.list_tasks(username=None)
             logger.info(f"Found {len(tasks)} tasks for all users")
         else:
             logger.info(f"Listing tasks for user '{x_user}'")
-            tasks = await executor.list_tasks(username=x_user)
+            tasks = executor.list_tasks(username=x_user)
             logger.info(f"Found {len(tasks)} tasks for user '{x_user}'")
 
         return TaskListResponse(tasks=tasks)
@@ -95,7 +95,7 @@ async def list_tasks(request: Request, x_user: str = Header(...), all_users: boo
 
 
 @router.get("/{task_id}", response_model=TaskStatus)
-async def get_task_status(request: Request, task_id: str, x_user: str = Header(...)):
+def get_task_status(request: Request, task_id: str, x_user: str = Header(...)):
     """
     Get status of a specific task
 
@@ -104,7 +104,7 @@ async def get_task_status(request: Request, task_id: str, x_user: str = Header(.
     try:
         logger.info(f"Getting status for task: {task_id} for user '{x_user}'")
         executor: KubernetesTaskExecutor = request.app.state.executor
-        task_status = await executor.get_task_status(task_id, username=x_user)
+        task_status = executor.get_task_status(task_id, username=x_user)
 
         if not task_status:
             logger.warning(f"Task not found: {task_id} for user '{x_user}'")
