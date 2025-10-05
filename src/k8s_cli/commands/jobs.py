@@ -184,6 +184,9 @@ def list(
             console.print("[yellow]No tasks found[/yellow]")
             return
 
+        # Sort tasks by created_at (newest first)
+        tasks.sort(key=lambda t: t.get("created_at", ""), reverse=True)
+
         # Create table
         table = Table(title="Tasks")
         table.add_column("Task ID", style="cyan")
