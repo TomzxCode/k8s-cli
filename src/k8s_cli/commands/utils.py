@@ -21,7 +21,7 @@ def get_api_url() -> str:
     """Get API server URL from environment or use default"""
     import os
 
-    return os.environ.get("SKY_K8S_API_URL", DEFAULT_API_URL)
+    return os.environ.get("K8S_CLI_API_URL", DEFAULT_API_URL)
 
 
 def get_current_user() -> Optional[str]:
