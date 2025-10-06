@@ -39,9 +39,10 @@ theme:
         name: Switch to light mode
 
 nav:
-  - Home: index.md
-  - Tasks: tasks.md
-  - Volumes: volumes.md
+  - Home:
+    - index.md
+    - Tasks: tasks.md
+    - Volumes: volumes.md
 
 markdown_extensions:
   - pymdownx.highlight:
